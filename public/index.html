@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>登入查詢系統</title>
+</head>
+<body>
+  <h2>雲端系統登入</h2>
+  <form id="cloudForm">
+    <input type="text" name="username" placeholder="帳號" required>
+    <input type="password" name="password" placeholder="密碼" required>
+    <input type="text" name="lots" placeholder="PSS_場地代號" required>
+    <input type="date" name="start" required>
+    <input type="date" name="end" required>
+    <button type="submit">查詢</button>
+  </form>
+
+  <h2>對帳系統登入</h2>
+  <form id="recForm">
+    <input type="text" name="username" placeholder="帳號" required>
+    <input type="password" name="password" placeholder="密碼" required>
+    <input type="date" name="start_date" required>
+    <input type="date" name="end_date" required>
+    <button type="submit">查詢</button>
+  </form>
+
+  <hr>
+  <h3>結果</h3>
+  <pre id="result"></pre>
+
+  <script>
+    const resultBox = document.getElementById('result');
+
+    document.getElementById('cloudForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+
+      const res = await fetch('/api/cloud/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const json = await res.json();
+      resultBox.textContent = JSON.stringify(json, null, 2);
+    });
+
+    document.getElementById('recForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+
+      const res = await fetch('/api/rec/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const json = await res.json();
+      resultBox.textContent = JSON.stringify(json, null, 2);
+    });
+  </script>
+</body>
+</html>
