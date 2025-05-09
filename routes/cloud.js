@@ -1,60 +1,92 @@
 import express from 'express';
+import fetch from 'node-fetch';
+import tough from 'tough-cookie';
+import fetchCookie from 'fetch-cookie';
 
 const router = express.Router();
+const cookieJar = new tough.CookieJar();
+const fetchWithCookie = fetchCookie(fetch, cookieJar);
 
 router.post('/login', async (req, res) => {
-  const { username, password, lots, start, end } = req.body;
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000); // 5秒 timeout
+  const { username, password, start, end } = req.body;
 
   try {
-    const loginRes = await fetch('https://ichenparking.com.tw/major/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0',
-      },
-      body: JSON.stringify({ username, password }),
-      signal: controller.signal,
-    });
+    console.log('開始抓取首頁並取得 cookies...');
 
-    clearTimeout(timeout); // 清除 timeout 計時器
+    // 1. 取得首頁並抓取 cookies
+    const homeRes = await fetchWithCookie('https://ichenparking.com.tw/major');
+    const homeText = await homeRes.text();
+    console.log('首頁抓取成功，取得 cookies');
 
-    const loginData = await loginRes.json();
+    const cookies = cookieJar.getCookiesSync('https://ichenparking.com.tw');
+    const xsrfCookie = cookies.find(c => c.key === 'XSRF-TOKEN');
+    const xsrfToken = decodeURIComponent(xsrfCookie?.value || '');
 
-    if (!loginData.token) {
-      return res.status(401).json({ error: 'Login failed or token not returned', loginData });
+    if (!xsrfToken) {
+      console.error('無法取得 CSRF Token');
+      return res.status(400).json({ error: '無法取得 CSRF Token' });
     }
 
-    const reportRes = await fetch('https://ichenparking.com.tw/finance/reports/daily-statistic', {
+    console.log('取得 CSRF Token:', xsrfToken);
+
+    // 2. 登入
+    console.log('開始登入...');
+    const loginRes = await fetchWithCookie('https://ichenparking.com.tw/major/login', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${loginData.token}`,
         'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': xsrfToken,
+        'User-Agent': 'Mozilla/5.0',
+        'Referer': 'https://ichenparking.com.tw/major/',
+        'Origin': 'https://ichenparking.com.tw',
+        'Accept': 'application/json, text/plain, */*'
+      },
+      body: JSON.stringify({ account: username, password }),
+    });
+
+    if (loginRes.status !== 200) {
+      const errData = await loginRes.text();
+      console.error('登入失敗:', errData);
+      return res.status(401).json({ error: '登入失敗', detail: errData });
+    }
+
+    console.log('登入成功');
+
+    // 3. 查詢報表（此時 session cookie 應已生效）
+    console.log('開始查詢報表...');
+    const reportRes = await fetchWithCookie('https://ichenparking.com.tw/finance/reports/daily-statistic', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Referer': 'https://ichenparking.com.tw/major/report',
       },
       body: JSON.stringify({
-        lots: [lots],
+        lots: [],  // 確認這裡的 'lots' 是否需要更新
         reportType: 'dailyStatisticReport',
         isForExternal: false,
         payDateInterval: { start, end },
         payMethod: [],
         transStatusStatistic: ['normal'],
         carCategory: [],
-        reportStatisticBy: ['machine'],
+        reportStatisticBy: ['machine']
       }),
-      credentials: "include",
     });
 
-    const result = await reportRes.json();
-    res.json(result);
+    const reportData = await reportRes.json();
+
+    if (reportRes.status !== 200) {
+      console.error('報表查詢失敗:', reportData);
+      return res.status(reportRes.status).json({ error: '報表查詢失敗', reportData });
+    }
+
+    console.log('報表查詢成功', reportData);
+
+    res.json(reportData);
 
   } catch (err) {
-    if (err.name === 'AbortError') {
-      res.status(408).json({ error: 'Login request timed out' });
-    } else {
-      res.status(500).json({ error: err.message });
-    }
+    console.error('Error occurred:', err);
+    res.status(500).json({ error: err.message || '未知錯誤' });
   }
 });
 

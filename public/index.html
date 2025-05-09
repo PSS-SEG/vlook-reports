@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <title>登入查詢系統</title>
@@ -9,7 +9,6 @@
   <form id="cloudForm">
     <input type="text" name="username" placeholder="帳號" required>
     <input type="password" name="password" placeholder="密碼" required>
-    <input type="text" name="lots" placeholder="PSS_場地代號" required>
     <input type="date" name="start" required>
     <input type="date" name="end" required>
     <button type="submit">查詢</button>
@@ -36,14 +35,21 @@
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
 
-      const res = await fetch('/api/cloud/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      console.log('Sending cloud login request with:', data);
 
-      const json = await res.json();
-      resultBox.textContent = JSON.stringify(json, null, 2);
+      try {
+        const res = await fetch('/api/cloud/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        const json = await res.json();
+        resultBox.textContent = JSON.stringify(json, null, 2);
+      } catch (err) {
+        resultBox.textContent = `錯誤: ${err.message}`;
+        console.error('Cloud login fetch error:', err);
+      }
     });
 
     document.getElementById('recForm').addEventListener('submit', async (e) => {
@@ -51,14 +57,21 @@
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
 
-      const res = await fetch('/api/rec/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      console.log('Sending rec login request with:', data);
 
-      const json = await res.json();
-      resultBox.textContent = JSON.stringify(json, null, 2);
+      try {
+        const res = await fetch('/api/rec/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        const json = await res.json();
+        resultBox.textContent = JSON.stringify(json, null, 2);
+      } catch (err) {
+        resultBox.textContent = `錯誤: ${err.message}`;
+        console.error('Rec login fetch error:', err);
+      }
     });
   </script>
 </body>
