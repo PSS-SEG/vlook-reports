@@ -11,6 +11,7 @@
     <input type="password" name="password" placeholder="密碼" required>
     <input type="date" name="start" required>
     <input type="date" name="end" required>
+    <input type="text" name="lotId" placeholder="場地代號（如 PSS_IC0854）" required>
     <button type="submit">查詢</button>
   </form>
 
@@ -28,51 +29,51 @@
   <pre id="result"></pre>
 
   <script>
-    const resultBox = document.getElementById('result');
+  const resultBox = document.getElementById('result');
 
-    document.getElementById('cloudForm').addEventListener('submit', async (e) => {
+  async function handleSubmit(endpoint, form, transform = (data) => data) {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData);
+      let data = Object.fromEntries(formData);
+      data = transform(data);
 
-      console.log('Sending cloud login request with:', data);
+      console.log(`🚀 Sending request to ${endpoint} with:`, data);
 
       try {
-        const res = await fetch('/api/cloud/login', {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
 
-        const json = await res.json();
-        resultBox.textContent = JSON.stringify(json, null, 2);
+        const text = await res.text();
+        console.log(`📥 Response from ${endpoint}:`, text);
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        }
+
+        // 嘗試解析為 JSON
+        try {
+          const json = JSON.parse(text);
+          resultBox.textContent = JSON.stringify(json, null, 2);
+        } catch (parseErr) {
+          console.warn('⚠️ 回應不是 JSON 格式:', text);
+          resultBox.textContent = text;
+        }
       } catch (err) {
-        resultBox.textContent = `錯誤: ${err.message}`;
-        console.error('Cloud login fetch error:', err);
+        resultBox.textContent = `❌ 錯誤：${err.message}`;
+        console.error('🔥 Fetch error:', err);
       }
     });
+  }
 
-    document.getElementById('recForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData);
+  // 綁定雲端系統表單
+  handleSubmit('/api/cloud/login', document.getElementById('cloudForm'));
 
-      console.log('Sending rec login request with:', data);
-
-      try {
-        const res = await fetch('/api/rec/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-
-        const json = await res.json();
-        resultBox.textContent = JSON.stringify(json, null, 2);
-      } catch (err) {
-        resultBox.textContent = `錯誤: ${err.message}`;
-        console.error('Rec login fetch error:', err);
-      }
-    });
-  </script>
+  // 綁定對帳系統表單
+  handleSubmit('/api/rec/login', document.getElementById('recForm'));
+</script>
 </body>
 </html>
