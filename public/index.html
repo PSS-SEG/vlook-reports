@@ -1,44 +1,113 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>登入查詢系統</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h2, h3 {
+      color: #333;
+    }
+    form {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #f9f9f9;
+      max-width: 600px;
+    }
+    input, button {
+      margin: 5px 10px 5px 0;
+      padding: 6px;
+    }
+    table {
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
 </head>
 <body>
   <h2>雲端系統登入</h2>
   <form id="cloudForm">
-    <input type="text" name="username" placeholder="帳號" required>
-    <input type="password" name="password" placeholder="密碼" required>
-    <input type="date" name="start" required>
-    <input type="date" name="end" required>
-    <input type="text" name="lotId" placeholder="場地代號（如 PSS_IC0854）" required>
+    <input type="text" name="username" placeholder="帳號" required />
+    <input type="password" name="password" placeholder="密碼" required />
+    <input type="date" name="start_date" required />
+    <input type="date" name="end_date" required />
+    <input type="text" name="lotId" placeholder="場地代號（如 PSS_IC0854）" required />
     <button type="submit">查詢</button>
   </form>
 
   <h2>對帳系統登入</h2>
   <form id="recForm">
-    <input type="text" name="username" placeholder="帳號" required>
-    <input type="password" name="password" placeholder="密碼" required>
-    <input type="date" name="start_date" required>
-    <input type="date" name="end_date" required>
+    <input type="text" name="username" placeholder="帳號" required />
+    <input type="password" name="password" placeholder="密碼" required />
+    <input type="date" name="start_date" required />
+    <input type="date" name="end_date" required />
     <button type="submit">查詢</button>
   </form>
 
-  <hr>
+  <hr />
   <h3>結果</h3>
-  <pre id="result"></pre>
+  <div id="result"></div>
 
   <script>
   const resultBox = document.getElementById('result');
 
-  async function handleSubmit(endpoint, form, transform = (data) => data) {
+  function createTable(title, data) {
+    if (data.length === 0) return '';
+    let html = `<h4>${title}（共 ${data.length} 筆）</h4>`;
+    html += `<table><thead>
+      <tr><th>日期</th><th>場地代號</th><th>場地名稱</th><th>支付方式</th><th>異常原因</th></tr>
+    </thead><tbody>`;
+    data.forEach(row => {
+      html += `<tr>
+        <td>${row.date || ''}</td>
+        <td>${row.site_id || ''}</td>
+        <td>${row.site_name || ''}</td>
+        <td>${row.card_type || ''}</td>
+        <td>${row.reason || ''}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    return html;
+  }
+
+  function summarizeByType(data) {
+    const summary = {};
+    data.forEach(row => {
+      const key = row.card_type || '未知支付方式';
+      summary[key] = (summary[key] || 0) + 1;
+    });
+    return summary;
+  }
+
+  function displaySummary(title, data) {
+    const summary = summarizeByType(data);
+    let html = `<p><strong>${title} 統計：</strong>`;
+    for (const [type, count] of Object.entries(summary)) {
+      html += `${type}: ${count} 筆　`;
+    }
+    html += `總計：${data.length} 筆</p>`;
+    return html;
+  }
+
+  function handleSubmit(endpoint, form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
-      let data = Object.fromEntries(formData);
-      data = transform(data);
-
-      console.log(`🚀 Sending request to ${endpoint} with:`, data);
+      const data = Object.fromEntries(formData);
+      resultBox.innerHTML = "查詢中，請稍候...";
 
       try {
         const res = await fetch(endpoint, {
@@ -47,32 +116,78 @@
           body: JSON.stringify(data),
         });
 
-        const text = await res.text();
-        console.log(`📥 Response from ${endpoint}:`, text);
+        const json = await res.json();
+        console.log("✅ Received JSON:", json);
 
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${text}`);
+        let html = "";
+
+        // v1: 如果是新格式，使用 json.bothIssues 結構
+        if (json.bothIssues || json.onlyDiff || json.onlyTotal) {
+          const both = json.bothIssues || [];
+          const onlyDiff = json.onlyDiff || [];
+          const onlyZero = json.onlyTotal || [];
+
+          html += createTable("❗ 同時符合兩條件", both);
+          html += displaySummary("同時異常", both);
+          html += createTable("🔺 在途營收為負數", onlyDiff);
+          html += displaySummary("在途營收異常", onlyDiff);
+          html += createTable("🔵 期間營收為 0", onlyZero);
+          html += displaySummary("期間營收異常", onlyZero);
+
+          if (!both.length && !onlyDiff.length && !onlyZero.length) {
+            html = "<p>✅ 沒有異常資料！</p>";
+          }
+
+        } else if (Array.isArray(json)) {
+          // v2: 舊格式，處理 payload 結構
+          const onlyDiff = [], onlyZero = [], both = [];
+
+          json.forEach(({ card_type, data }) => {
+            if (!data || !data.payload) return;
+            data.payload.forEach(site => {
+              const { site_id, site_name, details } = site;
+              if (!details || !details.length) return;
+
+              details.forEach(d => {
+                const diffNeg = d.diff_amount < 0;
+                const totalZero = d.total_amount === 0;
+
+                if (diffNeg && totalZero) {
+                  both.push({ date: d.date, site_id, site_name, card_type, reason: "在途營收為負數、期間營收為0" });
+                } else if (diffNeg) {
+                  onlyDiff.push({ date: d.date, site_id, site_name, card_type, reason: "在途營收為負數" });
+                } else if (totalZero) {
+                  onlyZero.push({ date: d.date, site_id, site_name, card_type, reason: "期間營收為0" });
+                }
+              });
+            });
+          });
+
+          html += createTable("❗ 同時符合兩條件", both);
+          html += displaySummary("同時異常", both);
+          html += createTable("🔺 在途營收為負數", onlyDiff);
+          html += displaySummary("在途營收異常", onlyDiff);
+          html += createTable("🔵 期間營收為 0", onlyZero);
+          html += displaySummary("期間營收異常", onlyZero);
+
+          if (!both.length && !onlyDiff.length && !onlyZero.length) {
+            html = "<p>✅ 沒有異常資料！</p>";
+          }
+
+        } else {
+          html = "<p>⚠️ 無法辨識回傳資料格式</p>";
         }
 
-        // 嘗試解析為 JSON
-        try {
-          const json = JSON.parse(text);
-          resultBox.textContent = JSON.stringify(json, null, 2);
-        } catch (parseErr) {
-          console.warn('⚠️ 回應不是 JSON 格式:', text);
-          resultBox.textContent = text;
-        }
+        resultBox.innerHTML = html;
+
       } catch (err) {
-        resultBox.textContent = `❌ 錯誤：${err.message}`;
+        resultBox.innerHTML = `<p>❌ 錯誤：${err.message}</p>`;
         console.error('🔥 Fetch error:', err);
       }
     });
   }
 
-  // 綁定雲端系統表單
   handleSubmit('/api/cloud/login', document.getElementById('cloudForm'));
-
-  // 綁定對帳系統表單
   handleSubmit('/api/rec/login', document.getElementById('recForm'));
 </script>
 </body>
