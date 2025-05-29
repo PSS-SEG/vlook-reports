@@ -11,15 +11,21 @@
     h2, h3 {
       color: #333;
     }
+    h4 {
+    margin-top: 20px;
+    }
+    h4::before {
+    content: "🔍 ";
+    }
     form {
       margin-bottom: 20px;
       padding: 10px;
       border: 1px solid #ccc;
       background-color: #f9f9f9;
-      max-width: 600px;
+      max-width: 800px;
     }
     input, button {
-      margin: 5px 10px 5px 0;
+      margin: 0px 10px 0px 0;
       padding: 6px;
     }
     table {
@@ -55,6 +61,12 @@
     <input type="date" name="start_date" required />
     <input type="date" name="end_date" required />
     <button type="submit">查詢</button>
+  </form>
+
+  <h3>白名單(分行填入需要排除的場地後儲存)</h3>
+  <form onsubmit="saveWhitelist(); return false;" style="display: flex; align-items: flex-end; gap: 10px;">
+    <textarea id="whiteListInput" rows="4" style="width: 400px;" placeholder="每寫一個場地代號就換行，EX:PSS_XXX"></textarea>
+    <button type="button" onclick="saveWhitelist()">儲存白名單</button>
   </form>
 
   <hr />
@@ -102,11 +114,29 @@
     return html;
   }
 
+  function saveWhitelist() {
+    const list = document.getElementById('whiteListInput').value
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+    localStorage.setItem('whitelist', JSON.stringify(list));
+    alert('白名單已儲存');
+    document.getElementById('whiteListInput').value = list.join('\n');
+  }
+  window.onload = () =>{
+    const saved = localStorage.getItem('whitelist');
+    if (saved) {
+      document.getElementById('whiteListInput').value = JSON.parse(saved).join('\n');
+    }
+  };
+
   function handleSubmit(endpoint, form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
+      const whitelist = JSON.parse(localStorage.getItem('whitelist') || '[]');
+      data.whitelist = whitelist;
       resultBox.innerHTML = "查詢中，請稍候...";
 
       try {
@@ -118,6 +148,11 @@
 
         const json = await res.json();
         console.log("✅ Received JSON:", json);
+
+        if (json.error) {
+          resultBox.innerHTML = `<p>❌ 錯誤：${json.error}</p>`;
+          return;
+        }
 
         let html = "";
 

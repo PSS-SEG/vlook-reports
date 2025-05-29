@@ -8,7 +8,7 @@ const jar = new CookieJar();
 const fetchWithCookie = fetchCookie(fetch, jar);
 
 router.post('/login', async (req, res) => {
-  const { username, password, start_date, end_date } = req.body;
+  const { username, password, start_date, end_date,whitelist = [] } = req.body;
 
   try {
     // 登入取得 session cookie
@@ -70,9 +70,11 @@ router.post('/login', async (req, res) => {
       onlyTotal: {},
       total: 0
     };
+    const lowerWhitelist = whitelist.map(x => x.toLowerCase());
+    const filteredResults = rawResults.filter(item => !lowerWhitelist.includes(item.site_id.toLowerCase()));
 
     // 篩選異常資料並累計，並帶入 date 欄位
-    for (const item of rawResults) {
+    for (const item of filteredResults) {
       const { site_id, site_name, card_type, diff_amount, total_amount, date } = item;
       const isDiffNegative = Number(diff_amount) < 0;
       const isTotalZero = Number(total_amount) === 0;
