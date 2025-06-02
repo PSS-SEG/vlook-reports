@@ -52,10 +52,49 @@
     th {
       background-color: #f2f2f2;
     }
+
+    /* 🌙 黑夜模式樣式 */
+    body.dark-mode {
+      background-color: #1e1e1e;
+      color: #eee;
+    }
+
+    body.dark-mode form {
+      background-color: #2c2c2c;
+      border-color: #555;
+    }
+    body.dark-mode h2,
+    body.dark-mode h3,
+    body.dark-mode h4 {
+     color: #ffffff;
+    }
+
+    body.dark-mode input,
+    body.dark-mode textarea,
+    body.dark-mode button {
+      background-color: #444;
+      color: #fff;
+      border: 1px solid #666;
+    }
+
+    body.dark-mode table {
+      border-color: #666;
+    }
+
+    body.dark-mode th {
+      background-color: #444;
+    }
+
+    body.dark-mode td {
+      background-color: #2a2a2a;
+    }
   </style>
 </head>
 
 <body>
+    <!-- 🌗 黑夜模式切換按鈕 -->
+  <button id="toggleDarkMode" style="margin-bottom: 20px;">🌙 切換白晝/黑夜模式</button>
+
   <!-- 雲端系統登入表單 -->
   <h2>雲端系統登入</h2>
   <form id="cloudForm">
@@ -91,6 +130,32 @@
 
   <script>
     const resultBox = document.getElementById('result');
+
+    // 🌗 黑夜模式切換功能
+    const toggleButton = document.getElementById('toggleDarkMode');
+
+    function setDarkMode(enabled) {
+      document.body.classList.toggle('dark-mode', enabled);
+      localStorage.setItem('darkMode', enabled ? '1' : '0');
+    }
+
+    // 點擊按鈕切換主題
+    toggleButton.addEventListener('click', () => {
+      const isDark = document.body.classList.contains('dark-mode');
+      setDarkMode(!isDark);
+    });
+
+    // 頁面紀錄用戶自行選用的主題及白名單現況
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('darkMode');
+      if (savedTheme === '1') {
+        document.body.classList.add('dark-mode');
+      }
+      const savedWhitelist = localStorage.getItem('whitelist');
+      if (savedWhitelist) {
+        document.getElementById('whiteListInput').value = JSON.parse(savedWhitelist).join('\n');
+      }
+    });
 
     // 建立結果表格函式
     function createTable(title, data) {
@@ -144,14 +209,6 @@
       document.getElementById('whiteListInput').value = list.join('\n');
     }
 
-    // 頁面載入時載入白名單
-    window.onload = () => {
-      const saved = localStorage.getItem('whitelist');
-      if (saved) {
-        document.getElementById('whiteListInput').value = JSON.parse(saved).join('\n');
-      }
-    };
-
     // 處理表單提交並發送請求
     function handleSubmit(endpoint, form) {
       form.addEventListener('submit', async (e) => {
@@ -177,7 +234,7 @@
 
           let html = "";
 
-          // v1: 新版格式處理
+          // 後端回傳報表格式整理
           if (json.bothIssues || json.onlyDiff || json.onlyTotal) {
             const both = json.bothIssues || [];
             const onlyDiff = json.onlyDiff || [];
