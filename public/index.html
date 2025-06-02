@@ -78,7 +78,7 @@
   </form>
 
   <!-- 白名單區塊 -->
-  <h3>白名單(分行填入需要排除的場地後儲存)</h3>
+  <h3>對帳系統白名單(填入不需檢查的場地後儲存)</h3>
   <form onsubmit="saveWhitelist(); return false;" style="display: flex; align-items: flex-end; gap: 10px;">
     <textarea id="whiteListInput" rows="4" style="width: 400px;" placeholder="每寫一個場地代號就換行，EX:PSS_XXX"></textarea>
     <button type="button" onclick="saveWhitelist()">儲存白名單</button>
@@ -86,7 +86,7 @@
 
   <hr />
   <!-- 查詢結果顯示區 -->
-  <h3>結果</h3>
+  <h3>檢查結果</h3>
   <div id="result"></div>
 
   <script>
@@ -182,43 +182,6 @@
             const both = json.bothIssues || [];
             const onlyDiff = json.onlyDiff || [];
             const onlyZero = json.onlyTotal || [];
-
-            html += createTable("❗ 同時符合兩條件", both);
-            html += displaySummary("同時異常", both);
-            html += createTable("🔺 在途營收為負數", onlyDiff);
-            html += displaySummary("在途營收異常", onlyDiff);
-            html += createTable("🔵 期間營收為 0", onlyZero);
-            html += displaySummary("期間營收異常", onlyZero);
-
-            if (!both.length && !onlyDiff.length && !onlyZero.length) {
-              html = "<p>✅ 沒有異常資料！</p>";
-            }
-
-          // v2: 舊版格式處理（回傳為 array）
-          } else if (Array.isArray(json)) {
-            const both = [], onlyDiff = [], onlyZero = [];
-
-            json.forEach(({ card_type, data }) => {
-              if (!data || !data.payload) return;
-
-              data.payload.forEach(site => {
-                const { site_id, site_name, details } = site;
-                if (!details || !details.length) return;
-
-                details.forEach(d => {
-                  const diffNeg = d.diff_amount < 0;
-                  const totalZero = d.total_amount === 0;
-
-                  if (diffNeg && totalZero) {
-                    both.push({ date: d.date, site_id, site_name, card_type, reason: "在途營收為負數、期間營收為0" });
-                  } else if (diffNeg) {
-                    onlyDiff.push({ date: d.date, site_id, site_name, card_type, reason: "在途營收為負數" });
-                  } else if (totalZero) {
-                    onlyZero.push({ date: d.date, site_id, site_name, card_type, reason: "期間營收為0" });
-                  }
-                });
-              });
-            });
 
             html += createTable("❗ 同時符合兩條件", both);
             html += displaySummary("同時異常", both);
