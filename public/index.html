@@ -4,19 +4,25 @@
   <meta charset="UTF-8" />
   <title>登入查詢系統</title>
   <style>
+    /* 基本樣式 */
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
     }
+
     h2, h3 {
       color: #333;
     }
+
     h4 {
-    margin-top: 20px;
+      margin-top: 20px;
     }
+
     h4::before {
-    content: "🔍 ";
+      content: "🔍 ";
     }
+
+    /* 表單樣式 */
     form {
       margin-bottom: 20px;
       padding: 10px;
@@ -24,26 +30,33 @@
       background-color: #f9f9f9;
       max-width: 800px;
     }
+
     input, button {
       margin: 0px 10px 0px 0;
       padding: 6px;
     }
+
+    /* 表格樣式 */
     table {
       border-collapse: collapse;
       margin-bottom: 20px;
-      width: 100%;
+      width: auto;
     }
+
     th, td {
       border: 1px solid #ccc;
       padding: 8px;
       text-align: left;
     }
+
     th {
       background-color: #f2f2f2;
     }
   </style>
 </head>
+
 <body>
+  <!-- 雲端系統登入表單 -->
   <h2>雲端系統登入</h2>
   <form id="cloudForm">
     <input type="text" name="username" placeholder="帳號" required />
@@ -54,6 +67,7 @@
     <button type="submit">查詢</button>
   </form>
 
+  <!-- 對帳系統登入表單 -->
   <h2>對帳系統登入</h2>
   <form id="recForm">
     <input type="text" name="username" placeholder="帳號" required />
@@ -63,6 +77,7 @@
     <button type="submit">查詢</button>
   </form>
 
+  <!-- 白名單區塊 -->
   <h3>白名單(分行填入需要排除的場地後儲存)</h3>
   <form onsubmit="saveWhitelist(); return false;" style="display: flex; align-items: flex-end; gap: 10px;">
     <textarea id="whiteListInput" rows="4" style="width: 400px;" placeholder="每寫一個場地代號就換行，EX:PSS_XXX"></textarea>
@@ -70,160 +85,170 @@
   </form>
 
   <hr />
+  <!-- 查詢結果顯示區 -->
   <h3>結果</h3>
   <div id="result"></div>
 
   <script>
-  const resultBox = document.getElementById('result');
+    const resultBox = document.getElementById('result');
 
-  function createTable(title, data) {
-    if (data.length === 0) return '';
-    let html = `<h4>${title}（共 ${data.length} 筆）</h4>`;
-    html += `<table><thead>
-      <tr><th>日期</th><th>場地代號</th><th>場地名稱</th><th>支付方式</th><th>異常原因</th></tr>
-    </thead><tbody>`;
-    data.forEach(row => {
-      html += `<tr>
-        <td>${row.date || ''}</td>
-        <td>${row.site_id || ''}</td>
-        <td>${row.site_name || ''}</td>
-        <td>${row.card_type || ''}</td>
-        <td>${row.reason || ''}</td>
-      </tr>`;
-    });
-    html += `</tbody></table>`;
-    return html;
-  }
-
-  function summarizeByType(data) {
-    const summary = {};
-    data.forEach(row => {
-      const key = row.card_type || '未知支付方式';
-      summary[key] = (summary[key] || 0) + 1;
-    });
-    return summary;
-  }
-
-  function displaySummary(title, data) {
-    const summary = summarizeByType(data);
-    let html = `<p><strong>${title} 統計：</strong>`;
-    for (const [type, count] of Object.entries(summary)) {
-      html += `${type}: ${count} 筆　`;
+    // 建立結果表格函式
+    function createTable(title, data) {
+      if (data.length === 0) return '';
+      let html = `<h4>${title}（共 ${data.length} 筆）</h4>`;
+      html += `<table><thead>
+        <tr><th>日期</th><th>場地代號</th><th>場地名稱</th><th>支付方式</th><th>異常原因</th></tr>
+      </thead><tbody>`;
+      data.forEach(row => {
+        html += `<tr>
+          <td>${row.date || ''}</td>
+          <td>${row.site_id || ''}</td>
+          <td>${row.site_name || ''}</td>
+          <td>${row.card_type || ''}</td>
+          <td>${row.reason || ''}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+      return html;
     }
-    html += `總計：${data.length} 筆</p>`;
-    return html;
-  }
 
-  function saveWhitelist() {
-    const list = document.getElementById('whiteListInput').value
-      .split('\n')
-      .map(line => line.trim())
-      .filter(Boolean);
-    localStorage.setItem('whitelist', JSON.stringify(list));
-    alert('白名單已儲存');
-    document.getElementById('whiteListInput').value = list.join('\n');
-  }
-  window.onload = () =>{
-    const saved = localStorage.getItem('whitelist');
-    if (saved) {
-      document.getElementById('whiteListInput').value = JSON.parse(saved).join('\n');
+    // 根據支付方式分類統計筆數
+    function summarizeByType(data) {
+      const summary = {};
+      data.forEach(row => {
+        const key = row.card_type || '未知支付方式';
+        summary[key] = (summary[key] || 0) + 1;
+      });
+      return summary;
     }
-  };
 
-  function handleSubmit(endpoint, form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData);
-      const whitelist = JSON.parse(localStorage.getItem('whitelist') || '[]');
-      data.whitelist = whitelist;
-      resultBox.innerHTML = "查詢中，請稍候...";
+    // 顯示統計摘要
+    function displaySummary(title, data) {
+      const summary = summarizeByType(data);
+      let html = `<p><strong>${title} 統計：</strong>`;
+      for (const [type, count] of Object.entries(summary)) {
+        html += `${type}: ${count} 筆　`;
+      }
+      html += `總計：${data.length} 筆</p>`;
+      return html;
+    }
 
-      try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
+    // 儲存白名單到 localStorage
+    function saveWhitelist() {
+      const list = document.getElementById('whiteListInput').value
+        .split('\n')                 // 以換行分割
+        .map(line => line.trim())   // 去除空白
+        .filter(Boolean);           // 過濾空行
+      localStorage.setItem('whitelist', JSON.stringify(list));
+      alert('白名單已儲存');
+      document.getElementById('whiteListInput').value = list.join('\n');
+    }
 
-        const json = await res.json();
-        console.log("✅ Received JSON:", json);
+    // 頁面載入時載入白名單
+    window.onload = () => {
+      const saved = localStorage.getItem('whitelist');
+      if (saved) {
+        document.getElementById('whiteListInput').value = JSON.parse(saved).join('\n');
+      }
+    };
 
-        if (json.error) {
-          resultBox.innerHTML = `<p>❌ 錯誤：${json.error}</p>`;
-          return;
-        }
+    // 處理表單提交並發送請求
+    function handleSubmit(endpoint, form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-        let html = "";
+        // 將表單資料轉換為 JSON
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        const whitelist = JSON.parse(localStorage.getItem('whitelist') || '[]');
+        data.whitelist = whitelist;
 
-        // v1: 如果是新格式，使用 json.bothIssues 結構
-        if (json.bothIssues || json.onlyDiff || json.onlyTotal) {
-          const both = json.bothIssues || [];
-          const onlyDiff = json.onlyDiff || [];
-          const onlyZero = json.onlyTotal || [];
+        resultBox.innerHTML = "查詢中，請稍候...";
 
-          html += createTable("❗ 同時符合兩條件", both);
-          html += displaySummary("同時異常", both);
-          html += createTable("🔺 在途營收為負數", onlyDiff);
-          html += displaySummary("在途營收異常", onlyDiff);
-          html += createTable("🔵 期間營收為 0", onlyZero);
-          html += displaySummary("期間營收異常", onlyZero);
-
-          if (!both.length && !onlyDiff.length && !onlyZero.length) {
-            html = "<p>✅ 沒有異常資料！</p>";
-          }
-
-        } else if (Array.isArray(json)) {
-          // v2: 舊格式，處理 payload 結構
-          const onlyDiff = [], onlyZero = [], both = [];
-
-          json.forEach(({ card_type, data }) => {
-            if (!data || !data.payload) return;
-            data.payload.forEach(site => {
-              const { site_id, site_name, details } = site;
-              if (!details || !details.length) return;
-
-              details.forEach(d => {
-                const diffNeg = d.diff_amount < 0;
-                const totalZero = d.total_amount === 0;
-
-                if (diffNeg && totalZero) {
-                  both.push({ date: d.date, site_id, site_name, card_type, reason: "在途營收為負數、期間營收為0" });
-                } else if (diffNeg) {
-                  onlyDiff.push({ date: d.date, site_id, site_name, card_type, reason: "在途營收為負數" });
-                } else if (totalZero) {
-                  onlyZero.push({ date: d.date, site_id, site_name, card_type, reason: "期間營收為0" });
-                }
-              });
-            });
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
           });
 
-          html += createTable("❗ 同時符合兩條件", both);
-          html += displaySummary("同時異常", both);
-          html += createTable("🔺 在途營收為負數", onlyDiff);
-          html += displaySummary("在途營收異常", onlyDiff);
-          html += createTable("🔵 期間營收為 0", onlyZero);
-          html += displaySummary("期間營收異常", onlyZero);
+          const json = await res.json();
+          console.log("✅ Received JSON:", json);
 
-          if (!both.length && !onlyDiff.length && !onlyZero.length) {
-            html = "<p>✅ 沒有異常資料！</p>";
+          let html = "";
+
+          // v1: 新版格式處理
+          if (json.bothIssues || json.onlyDiff || json.onlyTotal) {
+            const both = json.bothIssues || [];
+            const onlyDiff = json.onlyDiff || [];
+            const onlyZero = json.onlyTotal || [];
+
+            html += createTable("❗ 同時符合兩條件", both);
+            html += displaySummary("同時異常", both);
+            html += createTable("🔺 在途營收為負數", onlyDiff);
+            html += displaySummary("在途營收異常", onlyDiff);
+            html += createTable("🔵 期間營收為 0", onlyZero);
+            html += displaySummary("期間營收異常", onlyZero);
+
+            if (!both.length && !onlyDiff.length && !onlyZero.length) {
+              html = "<p>✅ 沒有異常資料！</p>";
+            }
+
+          // v2: 舊版格式處理（回傳為 array）
+          } else if (Array.isArray(json)) {
+            const both = [], onlyDiff = [], onlyZero = [];
+
+            json.forEach(({ card_type, data }) => {
+              if (!data || !data.payload) return;
+
+              data.payload.forEach(site => {
+                const { site_id, site_name, details } = site;
+                if (!details || !details.length) return;
+
+                details.forEach(d => {
+                  const diffNeg = d.diff_amount < 0;
+                  const totalZero = d.total_amount === 0;
+
+                  if (diffNeg && totalZero) {
+                    both.push({ date: d.date, site_id, site_name, card_type, reason: "在途營收為負數、期間營收為0" });
+                  } else if (diffNeg) {
+                    onlyDiff.push({ date: d.date, site_id, site_name, card_type, reason: "在途營收為負數" });
+                  } else if (totalZero) {
+                    onlyZero.push({ date: d.date, site_id, site_name, card_type, reason: "期間營收為0" });
+                  }
+                });
+              });
+            });
+
+            html += createTable("❗ 同時符合兩條件", both);
+            html += displaySummary("同時異常", both);
+            html += createTable("🔺 在途營收為負數", onlyDiff);
+            html += displaySummary("在途營收異常", onlyDiff);
+            html += createTable("🔵 期間營收為 0", onlyZero);
+            html += displaySummary("期間營收異常", onlyZero);
+
+            if (!both.length && !onlyDiff.length && !onlyZero.length) {
+              html = "<p>✅ 沒有異常資料！</p>";
+            }
+
+          // 其他未知格式
+          } else {
+            html = "<p>⚠️ 無法辨識回傳資料格式</p>";
           }
 
-        } else {
-          html = "<p>⚠️ 無法辨識回傳資料格式</p>";
+          resultBox.innerHTML = html;
+
+        } catch (err) {
+          // 錯誤處理
+          resultBox.innerHTML = `<p>❌ 錯誤：${err.message}</p>`;
+          console.error('🔥 Fetch error:', err);
         }
+      });
+    }
 
-        resultBox.innerHTML = html;
-
-      } catch (err) {
-        resultBox.innerHTML = `<p>❌ 錯誤：${err.message}</p>`;
-        console.error('🔥 Fetch error:', err);
-      }
-    });
-  }
-
-  handleSubmit('/api/cloud/login', document.getElementById('cloudForm'));
-  handleSubmit('/api/rec/login', document.getElementById('recForm'));
-</script>
+    // 綁定表單提交事件
+    handleSubmit('/api/cloud/login', document.getElementById('cloudForm'));
+    handleSubmit('/api/rec/login', document.getElementById('recForm'));
+  </script>
 </body>
 </html>
