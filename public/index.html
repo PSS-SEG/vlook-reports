@@ -66,7 +66,7 @@
     body.dark-mode h2,
     body.dark-mode h3,
     body.dark-mode h4 {
-     color: #ffffff;
+    color: #ffffff;
     }
 
     body.dark-mode input,
@@ -92,7 +92,7 @@
 </head>
 
 <body>
-    <!-- 🌗 黑夜模式切換按鈕 -->
+  <!-- 🌗 黑夜模式切換按鈕 -->
   <button id="toggleDarkMode" style="margin-bottom: 20px;">🌙 切換白晝/黑夜模式</button>
 
   <!-- 雲端系統登入表單 -->
@@ -162,10 +162,11 @@
       if (data.length === 0) return '';
       let html = `<h4>${title}（共 ${data.length} 筆）</h4>`;
       html += `<table><thead>
-        <tr><th>日期</th><th>場地代號</th><th>場地名稱</th><th>支付方式</th><th>異常原因</th></tr>
+        <tr><th>金流歸屬</th><th>日期</th><th>場地代號</th><th>場地名稱</th><th>支付方式</th><th>異常原因</th></tr>
       </thead><tbody>`;
       data.forEach(row => {
         html += `<tr>
+          <td>${row.company || ''}</td>
           <td>${row.date || ''}</td>
           <td>${row.site_id || ''}</td>
           <td>${row.site_name || ''}</td>
@@ -253,7 +254,7 @@
 
           // 其他未知格式
           } else {
-            html = "<p>⚠️ 無法辨識回傳資料格式</p>";
+            html = "<p>⚠️ 無法辨識回傳資料格式，或檢查一下⚠️帳號密碼有沒有正確</p>";
           }
 
           resultBox.innerHTML = html;

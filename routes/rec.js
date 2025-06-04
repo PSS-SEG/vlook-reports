@@ -52,11 +52,12 @@ router.post('/login', async (req, res) => {
       // 展開每筆 site -> detail 加入 card_type
       if (Array.isArray(payload)) {
         payload.forEach(site => {
-          const { site_id, site_name, details } = site;
+          const { company, site_id, site_name, details } = site;
           if (Array.isArray(details)) {
             details.forEach(detail => {
               rawResults.push({
                 ...detail,
+                company,
                 site_id,
                 site_name,
                 card_type: type
@@ -88,6 +89,7 @@ router.post('/login', async (req, res) => {
     // === 遍歷資料並分類 ===
     for (const item of filteredResults) {
       const {
+        company,
         site_id,
         site_name,
         card_type,
@@ -102,6 +104,7 @@ router.post('/login', async (req, res) => {
       // 同時符合兩種異常
       if (isDiffNegative && isTotalZero) {
         bothIssues.push({
+          company,
           site_id,
           site_name,
           card_type,
@@ -113,6 +116,7 @@ router.post('/login', async (req, res) => {
       // 僅在途營收為負
       } else if (isDiffNegative) {
         onlyDiff.push({
+          company,
           site_id,
           site_name,
           card_type,
@@ -124,6 +128,7 @@ router.post('/login', async (req, res) => {
       // 僅期間營收為零
       } else if (isTotalZero) {
         onlyTotal.push({
+          company,
           site_id,
           site_name,
           card_type,
